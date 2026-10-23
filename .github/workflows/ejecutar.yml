@@ -1,11 +1,11 @@
 name: Bot de Encuestas
 
 on:
-  workflow_dispatch: # Esto habilita el botón "Run workflow" para ejecutarlo manualmente
+  workflow_dispatch: 
 
 jobs:
   enviar-respuesta:
-    runs-on: ubuntu-latest # GitHub usa una máquina virtual con Linux
+    runs-on: ubuntu-latest
 
     steps:
       - name: Clonar el repositorio
@@ -16,9 +16,14 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Instalar dependencias
+      - name: Instalar Chrome y ChromeDriver
+        uses: browser-actions/setup-chrome@v2
+        with:
+          install-chromedriver: true
+
+      - name: Instalar dependencias de Python
         run: |
-          pip install selenium webdriver-manager
+          pip install selenium
 
       - name: Ejecutar el Bot
         run: python bot_encuestas.py
