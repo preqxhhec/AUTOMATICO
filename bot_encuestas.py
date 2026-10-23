@@ -7,15 +7,13 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from webdriver_manager.chrome import ChromeDriverManager
 
-# URL de tu formulario
 URL_FORMULARIO = "https://docs.google.com/forms/d/e/1FAIpQLSfzCBr1UGj460ZxhOYcqglrgfgzKfufqCCYXVQbN3lLsEPKag/viewform"
 
 def enviar_una_respuesta():
     print("Iniciando navegador en modo invisible...")
     
-    # Configuración para que corra en GitHub (sin interfaz gráfica)
     options = webdriver.ChromeOptions()
-    options.add_argument("--headless=new") # Modo invisible
+    options.add_argument("--headless=new") 
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--window-size=1920,1080")
@@ -24,18 +22,23 @@ def enviar_una_respuesta():
     
     try:
         driver.get(URL_FORMULARIO)
-        wait = WebDriverWait(driver, 15)
+        print("Página cargada. Esperando elementos...")
+        
+        # Aumentamos la espera a 20 segundos
+        wait = WebDriverWait(driver, 20)
         wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "div[role='listitem']")))
-        time.sleep(2) # Pausa para que cargue todo
+        time.sleep(3) # Damos 3 segundos extra de respiro
 
         bloques = driver.find_elements(By.CSS_SELECTOR, "div[role='listitem']")
+        print(f"Se encontraron {len(bloques)} bloques de preguntas.")
         
-        # 1. Servicio (Opción múltiple / texto)
+        # 1. Servicio
         radios_p1 = bloques[0].find_elements(By.CSS_SELECTOR, "div[role='radio']")
         if radios_p1:
             opciones_validas = [r for r in radios_p1 if r.get_attribute("data-value") != "__other_option__"]
             if opciones_validas:
                 random.choice(opciones_validas).click()
+                print("- Pregunta 1 respondida.")
 
         # 2. Preguntas Si/No
         preguntas_si_no = []
@@ -47,8 +50,9 @@ def enviar_una_respuesta():
         for opciones in preguntas_si_no:
             random.choice(opciones).click()
             time.sleep(0.3)
+        print(f"- {len(preguntas_si_no)} preguntas Si/No respondidas.")
 
-        # 3. Medios de comunicación (Casillas)
+        # 3. Medios
         for bloque in bloques:
             checks = bloque.find_elements(By.CSS_SELECTOR, "div[role='checkbox']")
             if checks:
@@ -58,29 +62,30 @@ def enviar_una_respuesta():
                     seleccionados = random.sample(checks_validos, min(cantidad, len(checks_validos)))
                     for c in seleccionados:
                         c.click()
+                print("- Pregunta de medios respondida.")
                 break
 
-        # 4. Pregunta de Texto (La última)
+        # 4. Texto
         textareas = driver.find_elements(By.TAG_NAME, "textarea")
         if textareas:
             respuestas = ["Fomentar charlas.", "Mayor transparencia.", "Capacitaciones.", "Nada.", "Difundir por intranet."]
             textareas[0].send_keys(random.choice(respuestas))
+            print("- Pregunta de texto respondida.")
 
         # 5. Botón Enviar
         time.sleep(1)
+        print("Buscando el botón Enviar...")
         boton_enviar = wait.until(EC.element_to_be_clickable((By.XPATH, "//span[text()='Enviar']/ancestor::div[@role='button']")))
         boton_enviar.click()
-        time.sleep(2)
+        print("¡Clic en Enviar realizado!")
         
-        print("✅ ¡Respuesta enviada con éxito!")
-        return True
+        time.sleep(4) # Esperamos 4 segundos para que Google procese la respuesta
+        print("✅ Proceso terminado.")
         
     except Exception as e:
         print(f"❌ Error en el envío: {e}")
-        return False
     finally:
         driver.quit()
 
 if __name__ == "__main__":
-    # Envía 1 sola respuesta cada vez que se presiona el botón
     enviar_una_respuesta()
