@@ -1,84 +1,82 @@
 import random
-import time
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from webdriver_manager.chrome import ChromeDriverManager
+import asyncio
+from playwright.async_api import async_playwright
 
 URL_FORMULARIO = "https://docs.google.com/forms/d/e/1FAIpQLSfzCBr1UGj460ZxhOYcqglrgfgzKfufqCCYXVQbN3lLsEPKag/viewform"
 
-def enviar_una_respuesta():
-    print("Iniciando navegador...")
-    options = webdriver.ChromeOptions()
-    options.add_argument("--headless=new") 
-    options.add_argument("--no-sandbox")
-    options.add_argument("--disable-dev-shm-usage")
-    options.binary_location = "/usr/bin/google-chrome"
-    options.add_argument("--window-size=1280,1024")
+async def main():
+    print("Iniciando navegador con Playwright...")
     
-    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
-    
-    try:
-        driver.get(URL_FORMULARIO)
-        wait = WebDriverWait(driver, 20)
-        wait.until(EC.presence_of_element_located((By.TAG_NAME, "form")))
-        time.sleep(3)
-
-        # 1. Llenar TODAS las preguntas de opción única
+    async with async_playwright() as p:
+        # Lanzamos Chromium (el motor de Chrome) en modo invisible
+        browser = await p.chromium.launch(headless=True)
+        page = await browser.new_page()
+        
+        print("Navegando al formulario...")
+        await page.goto(URL_FORMULARIO)
+        
+        # Playwright espera automáticamente a que la página cargue
+        await page.wait_for_selector("div[role='listitem']", timeout=15000)
+        
         print("Llenando opciones únicas...")
-        # Buscamos todos los contenedores de preguntas reales (role='listitem')
-        bloques = driver.find_elements(By.CSS_SELECTOR, "div[role='listitem']")
+        # Buscar todos los bloques de preguntas
+        bloques = await page.locator("div[role='listitem']").all()
         
         for bloque in bloques:
-            # Buscar si este bloque tiene botones de opción (radios)
-            radios = bloque.find_elements(By.CSS_SELECTOR, "div[role='radio']")
+            # Si el bloque tiene botones de opción (radio)
+            radios = await bloque.locator("div[role='radio']").all()
             if radios:
-                # Elegir uno al azar (ignorando "Otro" si existe)
-                validos = [r for r in radios if r.get_attribute("data-value") != "__other_option__"]
+                # Filtramos el "Otro" para que no falle
+                validos = []
+                for r in radios:
+                    val = await r.get_attribute("data-value")
+                    if val != "__other_option__":
+                        validos.append(r)
                 if validos:
-                    random.choice(validos).click()
-                    time.sleep(0.3) # Pequeña pausa entre preguntas
+                    # Hacer clic en uno al azar
+                    await random.choice(validos).click()
+                    await page.wait_for_timeout(200) # Pausa para que Google lo registre
 
-        # 2. Llenar las casillas de verificación (Medios)
-        print("Llenando casillas...")
+        print("Llenando casillas (medios)...")
+        # Buscar casillas de verificación
         for bloque in bloques:
-            checks = bloque.find_elements(By.CSS_SELECTOR, "div[role='checkbox']")
+            checks = await bloque.locator("div[role='checkbox']").all()
             if checks:
-                cantidad = random.randint(1, 2)
-                validos = [c for c in checks if c.get_attribute("data-value") != "__other_option__"]
+                validos = []
+                for c in checks:
+                    val = await c.get_attribute("data-value")
+                    if val != "__other_option__":
+                        validos.append(c)
                 if validos:
-                    seleccionados = random.sample(validos, min(cantidad, len(validos)))
+                    # Elegir 1 o 2
+                    cantidad = random.randint(1, min(2, len(validos)))
+                    seleccionados = random.sample(validos, cantidad)
                     for c in seleccionados:
-                        c.click()
+                        await c.click()
                 break # Solo hay una pregunta de este tipo
 
-        # 3. Llenar el texto
         print("Llenando texto...")
-        textareas = driver.find_elements(By.TAG_NAME, "textarea")
+        textareas = await page.locator("textarea").all()
         if textareas:
             respuestas = ["Fomentar charlas.", "Mayor transparencia.", "Capacitaciones.", "Nada.", "Difundir por intranet."]
-            textareas[0].send_keys(random.choice(respuestas))
+            await textareas[0].fill(random.choice(respuestas))
 
-        # 4. Hacer clic en Enviar
         print("Haciendo clic en Enviar...")
-        boton_enviar = wait.until(EC.element_to_be_clickable((By.XPATH, "//div[@role='button'][.//span[contains(text(), 'Enviar') or contains(text(), 'Submit')]]")))
-        boton_enviar.click()
+        # Buscar el botón de enviar
+        boton = page.locator("div[role='button']").filter(has_text="Enviar")
+        await boton.click()
         
-        time.sleep(4) # Esperar a que procese
+        # Esperar a que la página de confirmación cargue
+        await page.wait_for_timeout(3000)
         
-        # Verificar si hubo errores de Google (por si acaso)
-        errores = driver.find_elements(By.XPATH, "//*[contains(text(), 'obligatoria') or contains(text(), 'required')]")
-        if len(errores) > 0:
-            print(f"❌ Google sigue diciendo que faltan preguntas: {len(errores)} errores.")
+        # Verificar si hay errores
+        errores = await page.locator("text='obligatoria'").count()
+        if errores > 0:
+            print(f"❌ Falló: Aún faltan preguntas obligatorias.")
         else:
-            print("✅ ¡Proceso terminado exitosamente! (Sin errores)")
+            print("✅ ¡Proceso terminado exitosamente! (Respuesta enviada)")
 
-    except Exception as e:
-        print(f"❌ Error: {e}")
-    finally:
-        driver.quit()
+        await browser.close()
 
 if __name__ == "__main__":
-    enviar_una_respuesta()
+    asyncio.run(main())
