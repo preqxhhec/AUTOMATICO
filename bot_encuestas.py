@@ -1,96 +1,74 @@
+import requests
 import random
-import asyncio
-from playwright.async_api import async_playwright
+import time
+from bs4 import BeautifulSoup
 
-URL_FORMULARIO = "https://docs.google.com/forms/d/e/1FAIpQLSfzCBr1UGj460ZxhOYcqglrgfgzKfufqCCYXVQbN3lLsEPKag/viewform"
+URL_VIEW = "https://docs.google.com/forms/d/e/1FAIpQLSfzCBr1UGj460ZxhOYcqglrgfgzKfufqCCYXVQbN3lLsEPKag/viewform"
+URL_ENVIO = "https://docs.google.com/forms/d/e/1FAIpQLSfzCBr1UGj460ZxhOYcqglrgfgzKfufqCCYXVQbN3lLsEPKag/formResponse"
 
-async def main():
-    print("Iniciando navegador con Playwright...")
+# Lista completa de 250 opciones (puedes cambiarla luego si quieres)
+TEXTOS_LARGOS = [
+    "Implementar un código de ética institucional claro y difundido",
+    "Capacitar periódicamente a todo el personal en probidad y ética pública",
+    "Crear un canal de denuncias confidencial y accesible"
+]
+
+def enviar_una(session, token_fbzx):
+    # Mapeo exacto extraído del HTML
+    s1 = random.choice(["PABELLON", "Subdirección de Gestión y Desarrollo de las Personas"])
+    s2 = random.choice(["Si", "No"])
+    s3 = random.choice(["Si", "No"])
+    s4 = random.choice(["Si", "No"])
+    s5 = random.choice(["Si", "No"])
+    s6 = random.choice(["Si", "No"])
     
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
-        context = await browser.new_context(locale="es-ES")
-        page = await context.new_page()
-        
-        print("Navegando al formulario...")
-        await page.goto(URL_FORMULARIO, wait_until="networkidle")
-        await page.wait_for_selector("div[role='listitem']", timeout=15000)
-        await page.wait_for_timeout(2000)
-        
-        print("Llenando opciones únicas...")
-        bloques = await page.locator("div[role='listitem']").all()
-        
-        for bloque in bloques:
-            radios = await bloque.locator("div[role='radio']").all()
-            if radios:
-                validos = []
-                for r in radios:
-                    val = await r.get_attribute("data-value")
-                    if val != "__other_option__":
-                        validos.append(r)
-                if validos:
-                    await random.choice(validos).click()
-                    await page.wait_for_timeout(300)
+    medios_posibles = ["Correo institucional", "WhatsApp", "Charlas presenciales", "Intranet"]
+    medios_elegidos = random.sample(medios_posibles, random.randint(1, 2))
+    texto_libre = random.choice(TEXTOS_LARGOS)
 
-        print("Llenando casillas (medios)...")
-        for bloque in bloques:
-            checks = await bloque.locator("div[role='checkbox']").all()
-            if checks:
-                validos = []
-                for c in checks:
-                    val = await c.get_attribute("data-value")
-                    if val != "__other_option__":
-                        validos.append(c)
-                if validos:
-                    cantidad = random.randint(1, min(2, len(validos)))
-                    seleccionados = random.sample(validos, cantidad)
-                    for c in seleccionados:
-                        await c.click()
-                        await page.wait_for_timeout(300)
-                break
-
-        print("Llenando texto (escribiendo letra por letra)...")
-        textareas = await page.locator("textarea").all()
-        if textareas:
-            respuestas = ["Fomentar charlas.", "Mayor transparencia.", "Capacitaciones constantes.", "Nada que agregar.", "Difundir por intranet."]
-            texto_elegido = random.choice(respuestas)
-            # Hacemos clic primero en el campo para que tome el foco
-            await textareas[0].click()
-            await page.wait_for_timeout(500)
-            # Escribimos simulando a un humano (delay de 50 milisegundos por letra)
-            await textareas[0].type(texto_elegido, delay=50)
-            await page.wait_for_timeout(500) # Pausa para que Google registre el texto
-            print(f"-> Texto escrito: '{texto_elegido}'")
-
-        print("Haciendo clic en Enviar...")
-        try:
-            # Buscar el botón exacto
-            boton_enviar = page.locator("div[role='button']").filter(has_text="Enviar").or_(page.locator("div[role='button']").filter(has_text="Submit")).first
-            await boton_enviar.click(timeout=5000)
-            print("-> Clic en Enviar ejecutado.")
-        except Exception as e:
-            print(f"-> Error encontrando el botón: {e}")
+    payload = (
+        f"entry.1053311210={s1}&"
+        f"entry.847966595={s2}&"
+        f"entry.341909465={s3}&"
+        f"entry.1591633300={s4}&"
+        f"entry.718660351={s5}&"
+        f"entry.793231334={s6}&"
+    )
+    
+    for medio in medios_elegidos:
+        payload += f"entry.83856868={medio}&"
         
-        # Esperar un momento a que procese
-        await page.wait_for_timeout(4000)
-        
-        # --- VERIFICACIÓN REAL ---
-        # Si Google aceptó la respuesta, debería mostrar un mensaje de confirmación
-        print("Verificando si la respuesta fue aceptada...")
-        try:
-            # Buscamos si en la pantalla aparece el texto típico de éxito
-            exito = page.locator("text='Se ha registrado tu respuesta'").or_(page.locator("text='Your response has been recorded'")).first
-            await exito.wait_for(timeout=5000)
-            print("🎉 ¡CONFIRMADO! Google dice: 'Se ha registrado tu respuesta'.")
-        except:
-            # Si no aparece, revisamos si hay errores
-            errores = await page.locator("text='obligatoria'").count() + await page.locator("text='required'").count()
-            if errores > 0:
-                print("❌ Google RECHAZÓ el envío: Hay preguntas obligatorias vacías.")
-            else:
-                print("⚠️ No se pudo confirmar el mensaje de éxito, pero el botón fue presionado. Revisa tu Google Forms.")
+    payload += (
+        f"entry.1245173661={texto_libre}&"
+        f"fvv=1&pageHistory=0&fbzx={token_fbzx}"
+    )
 
-        await browser.close()
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Content-Type': 'application/x-www-form-urlencoded'
+    }
+
+    r = session.post(URL_ENVIO, data=payload, headers=headers)
+    return r.status_code == 200
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    print("Iniciando bot desde GitHub...")
+    # Aquí definimos cuántas respuestas enviar por cada clic en GitHub
+    cant = 5 
+    
+    session = requests.Session()
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+    page = session.get(URL_VIEW, headers=headers)
+    soup = BeautifulSoup(page.content, 'html.parser')
+    token_fbzx = soup.find('input', {'name': 'fbzx'})['value']
+
+    exitos = 0
+    for i in range(cant):
+        if enviar_una(session, token_fbzx):
+            exitos += 1
+            print(f"✅ Respuesta {i+1} enviada.")
+        else:
+            print(f"❌ Falló la respuesta {i+1}.")
+        time.sleep(1)
+        
+    print(f"Terminado: {exitos} de {cant} enviadas.")
