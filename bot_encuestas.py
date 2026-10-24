@@ -1,6 +1,5 @@
 import random
 import time
-import os
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
@@ -17,9 +16,7 @@ def enviar_una_respuesta():
     options.add_argument("--headless=new") 
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
-    
-    # Ruta exacta de Chrome en los servidores de GitHub
-    options.binary_location = "/usr/bin/google-chrome" 
+    options.binary_location = "/usr/bin/google-chrome"
     
     driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
     
@@ -32,9 +29,9 @@ def enviar_una_respuesta():
         time.sleep(3)
 
         bloques = driver.find_elements(By.CSS_SELECTOR, "div[role='listitem']")
-        print(f"Se encontraron {len(bloques)} bloques de preguntas.")
+        print(f"Se encontraron {len(bloques)} bloques.")
         
-        # 1. Servicio
+        # 1. Servicio (Pregunta 1)
         radios_p1 = bloques[0].find_elements(By.CSS_SELECTOR, "div[role='radio']")
         if radios_p1:
             opciones_validas = [r for r in radios_p1 if r.get_attribute("data-value") != "__other_option__"]
@@ -42,19 +39,21 @@ def enviar_una_respuesta():
                 random.choice(opciones_validas).click()
                 print("- Pregunta 1 respondida.")
 
-        # 2. Preguntas Si/No
-        preguntas_si_no = []
-        for bloque in bloques[1:-1]: 
+        # 2. EL ARREGLO: Buscar TODOS los botones de radio en todos los bloques
+        # y hacer clic en uno al azar. Esto asegura que no quede ninguna en blanco.
+        print("- Buscando preguntas de opción única para asegurar que no queden vacías...")
+        for i, bloque in enumerate(bloques[1:-1], start=1): 
             radios = bloque.find_elements(By.CSS_SELECTOR, "div[role='radio']")
-            if len(radios) == 2:
-                preguntas_si_no.append(radios)
+            if radios:
+                # Si hay opciones de "Otro" (other_option), las filtramos para no complicarla
+                validas = [r for r in radios if r.get_attribute("data-value") != "__other_option__"]
+                if validas:
+                    random.choice(validas).click()
+                    time.sleep(0.3)
         
-        for opciones in preguntas_si_no:
-            random.choice(opciones).click()
-            time.sleep(0.3)
-        print(f"- {len(preguntas_si_no)} preguntas Si/No respondidas.")
+        print("- Preguntas de opción única respondidas.")
 
-        # 3. Medios
+        # 3. Medios (Casillas)
         for bloque in bloques:
             checks = bloque.find_elements(By.CSS_SELECTOR, "div[role='checkbox']")
             if checks:
@@ -86,13 +85,6 @@ def enviar_una_respuesta():
         
     except Exception as e:
         print(f"❌ Error en el envío: {e}")
-        # --- GUARDAR CAPTURA DE PANTALLA SI FALLA ---
-        try:
-            driver.save_screenshot("error_pantalla.png")
-            print("📸 Se guardó una captura de pantalla del error.")
-        except:
-            pass
-        # --------------------------------------------
     finally:
         driver.quit()
 
