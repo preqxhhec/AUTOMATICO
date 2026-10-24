@@ -10,8 +10,7 @@ from webdriver_manager.chrome import ChromeDriverManager
 URL_FORMULARIO = "https://docs.google.com/forms/d/e/1FAIpQLSfzCBr1UGj460ZxhOYcqglrgfgzKfufqCCYXVQbN3lLsEPKag/viewform"
 
 def enviar_una_respuesta():
-    print("Iniciando navegador en modo invisible...")
-    
+    print("Iniciando navegador...")
     options = webdriver.ChromeOptions()
     options.add_argument("--headless=new") 
     options.add_argument("--no-sandbox")
@@ -21,70 +20,74 @@ def enviar_una_respuesta():
     driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
     
     try:
-        print("Navegando al formulario...")
         driver.get(URL_FORMULARIO)
-        
         wait = WebDriverWait(driver, 20)
-        wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "div[role='listitem']")))
-        time.sleep(3)
+        wait.until(EC.presence_of_element_located((By.TAG_NAME, "form")))
+        time.sleep(3) # Dar tiempo a que cargue todo
 
-        bloques = driver.find_elements(By.CSS_SELECTOR, "div[role='listitem']")
-        print(f"Se encontraron {len(bloques)} bloques.")
+        print("Buscando botones de opción (radios)...")
+        # Buscar TODOS los botones de opción en toda la página
+        todos_los_radios = driver.find_elements(By.XPATH, "//div[@role='radio']")
         
-        # 1. Servicio (Pregunta 1)
-        radios_p1 = bloques[0].find_elements(By.CSS_SELECTOR, "div[role='radio']")
-        if radios_p1:
-            opciones_validas = [r for r in radios_p1 if r.get_attribute("data-value") != "__other_option__"]
-            if opciones_validas:
-                random.choice(opciones_validas).click()
-                print("- Pregunta 1 respondida.")
+        # Agruparlos por si hay varios en la misma pregunta (evitar hacer doble clic en la misma)
+        opciones_por_pregunta = {}
+        for radio in todos_los_radios:
+            try:
+                # Obtenemos el ID del grupo o usamos el nombre de la pregunta
+                pregunta_padre = radio.find_element(By.XPATH, "./ancestor::div[@role='listitem']")
+                id_pregunta = pregunta_padre.id
+                
+                if id_pregunta not in opciones_por_pregunta:
+                    opciones_por_pregunta[id_pregunta] = []
+                opciones_por_pregunta[id_pregunta].append(radio)
+            except:
+                pass
 
-        # 2. EL ARREGLO: Buscar TODOS los botones de radio en todos los bloques
-        # y hacer clic en uno al azar. Esto asegura que no quede ninguna en blanco.
-        print("- Buscando preguntas de opción única para asegurar que no queden vacías...")
-        for i, bloque in enumerate(bloques[1:-1], start=1): 
-            radios = bloque.find_elements(By.CSS_SELECTOR, "div[role='radio']")
-            if radios:
-                # Si hay opciones de "Otro" (other_option), las filtramos para no complicarla
-                validas = [r for r in radios if r.get_attribute("data-value") != "__other_option__"]
-                if validas:
-                    random.choice(validas).click()
-                    time.sleep(0.3)
+        print(f"Se encontraron {len(opciones_por_pregunta)} preguntas de opción única.")
         
-        print("- Preguntas de opción única respondidas.")
-
-        # 3. Medios (Casillas)
-        for bloque in bloques:
-            checks = bloque.find_elements(By.CSS_SELECTOR, "div[role='checkbox']")
-            if checks:
-                cantidad = random.randint(1, 2)
-                checks_validos = [c for c in checks if c.get_attribute("data-value") != "__other_option__"]
-                if checks_validos:
-                    seleccionados = random.sample(checks_validos, min(cantidad, len(checks_validos)))
-                    for c in seleccionados:
-                        c.click()
-                print("- Pregunta de medios respondida.")
-                break
-
-        # 4. Texto
+        # Hacer clic en una opción al azar por cada pregunta
+        for id_pregunta, opciones in opciones_por_pregunta.items():
+            random.choice(opciones).click()
+            time.sleep(0.3)
+            
+        print("Buscando casillas de verificación (medios)...")
+        # Buscar TODAS las casillas de verificación
+        todos_los_checks = driver.find_elements(By.XPATH, "//div[@role='checkbox']")
+        if todos_los_checks:
+            # Elegir 1 o 2 al azar
+            cantidad = random.randint(1, min(2, len(todos_los_checks)))
+            seleccionados = random.sample(todos_los_checks, cantidad)
+            for check in seleccionados:
+                check.click()
+                time.sleep(0.2)
+                
+        print("Buscando campo de texto...")
+        # Buscar campo de texto
         textareas = driver.find_elements(By.TAG_NAME, "textarea")
         if textareas:
             respuestas = ["Fomentar charlas.", "Mayor transparencia.", "Capacitaciones.", "Nada.", "Difundir por intranet."]
             textareas[0].send_keys(random.choice(respuestas))
-            print("- Pregunta de texto respondida.")
 
-        # 5. Botón Enviar
-        time.sleep(1)
-        print("Buscando el botón Enviar...")
-        boton_enviar = wait.until(EC.element_to_be_clickable((By.XPATH, "//span[text()='Enviar']/ancestor::div[@role='button']")))
-        boton_enviar.click()
-        print("¡Clic en Enviar realizado!")
+        print("Buscando botón Enviar...")
+        # Buscar el botón de enviar de varias formas posibles
+        boton_enviar = wait.until(EC.element_to_be_clickable((By.XPATH, "//div[@role='button'][.//span[contains(text(), 'Enviar') or contains(text(), 'Submit')]]")))
         
-        time.sleep(4)
-        print("✅ Proceso terminado exitosamente.")
+        print("Haciendo clic en Enviar...")
+        boton_enviar.click()
+        
+        time.sleep(3) # Esperar a que procese
+        print("✅ ¡Proceso terminado exitosamente!")
         
     except Exception as e:
-        print(f"❌ Error en el envío: {e}")
+        print(f"❌ Error exacto: {e}")
+        # Intento desesperado: buscar si hay un mensaje de error visible en pantalla
+        try:
+            errores = driver.find_elements(By.XPATH, "//*[contains(text(), 'obligatoria') or contains(text(), 'obligatorio') or contains(text(), 'required')]")
+            for err in errores:
+                if err.is_displayed():
+                    print(f"⚠️ Google dice: {err.text}")
+        except:
+            pass
     finally:
         driver.quit()
 
