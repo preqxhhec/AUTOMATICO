@@ -12,11 +12,14 @@ def enviar_una_respuesta():
     
     options = webdriver.ChromeOptions()
     options.add_argument("--headless=new") 
-    options.add_argument("--no-sandbox")
-    options.add_argument("--disable-dev-shm-usage")
-    options.add_argument("--window-size=1920,1080")
     
-    # Aquí estaba el error de sangría, ahora está perfecto
+    # --- ESTOS SON LOS PARÁMETROS QUE FALTABAN ---
+    options.add_argument("--no-sandbox")               # Evita problemas de permisos en Linux
+    options.add_argument("--disable-dev-shm-usage")    # Evita que se quede sin memoria
+    options.add_argument("--disable-gpu")              # Evita errores de tarjeta gráfica
+    options.add_argument("--user-data-dir=/tmp/chrome")# Usa una carpeta temporal para el perfil
+    # ---------------------------------------------
+    
     driver = webdriver.Chrome(options=options)
     
     try:
