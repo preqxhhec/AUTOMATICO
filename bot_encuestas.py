@@ -1,9 +1,11 @@
 import random
 import time
 from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from webdriver_manager.chrome import ChromeDriverManager
 
 URL_FORMULARIO = "https://docs.google.com/forms/d/e/1FAIpQLSfzCBr1UGj460ZxhOYcqglrgfgzKfufqCCYXVQbN3lLsEPKag/viewform"
 
@@ -12,15 +14,11 @@ def enviar_una_respuesta():
     
     options = webdriver.ChromeOptions()
     options.add_argument("--headless=new") 
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
     
-    # --- ESTOS SON LOS PARÁMETROS QUE FALTABAN ---
-    options.add_argument("--no-sandbox")               # Evita problemas de permisos en Linux
-    options.add_argument("--disable-dev-shm-usage")    # Evita que se quede sin memoria
-    options.add_argument("--disable-gpu")              # Evita errores de tarjeta gráfica
-    options.add_argument("--user-data-dir=/tmp/chrome")# Usa una carpeta temporal para el perfil
-    # ---------------------------------------------
-    
-    driver = webdriver.Chrome(options=options)
+    # Aquí dejamos que webdriver-manager instale el Chrome estable
+    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
     
     try:
         driver.get(URL_FORMULARIO)
