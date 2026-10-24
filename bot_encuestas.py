@@ -1,11 +1,9 @@
 import random
 import time
 from selenium import webdriver
-
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-
 
 URL_FORMULARIO = "https://docs.google.com/forms/d/e/1FAIpQLSfzCBr1UGj460ZxhOYcqglrgfgzKfufqCCYXVQbN3lLsEPKag/viewform"
 
@@ -18,16 +16,16 @@ def enviar_una_respuesta():
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--window-size=1920,1080")
     
-        driver = webdriver.Chrome(options=options)
+    # Aquí estaba el error de sangría, ahora está perfecto
+    driver = webdriver.Chrome(options=options)
     
     try:
         driver.get(URL_FORMULARIO)
         print("Página cargada. Esperando elementos...")
         
-        # Aumentamos la espera a 20 segundos
         wait = WebDriverWait(driver, 20)
         wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "div[role='listitem']")))
-        time.sleep(3) # Damos 3 segundos extra de respiro
+        time.sleep(3)
 
         bloques = driver.find_elements(By.CSS_SELECTOR, "div[role='listitem']")
         print(f"Se encontraron {len(bloques)} bloques de preguntas.")
@@ -79,8 +77,8 @@ def enviar_una_respuesta():
         boton_enviar.click()
         print("¡Clic en Enviar realizado!")
         
-        time.sleep(4) # Esperamos 4 segundos para que Google procese la respuesta
-        print("✅ Proceso terminado.")
+        time.sleep(4)
+        print("✅ Proceso terminado exitosamente.")
         
     except Exception as e:
         print(f"❌ Error en el envío: {e}")
