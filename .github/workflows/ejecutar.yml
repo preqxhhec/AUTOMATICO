@@ -16,9 +16,10 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Instalar dependencias
+      - name: Instalar Playwright
         run: |
-          pip install selenium webdriver-manager
+          pip install playwright
+          playwright install chromium
 
       - name: Ejecutar el Bot
         run: python bot_encuestas.py
