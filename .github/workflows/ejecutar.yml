@@ -16,10 +16,9 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Instalar Playwright
+      - name: Instalar dependencias
         run: |
-          pip install playwright
-          playwright install chromium
+          pip install requests beautifulsoup4
 
       - name: Ejecutar el Bot
         run: python bot_encuestas.py
