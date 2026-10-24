@@ -1,5 +1,6 @@
 import random
 import time
+import os
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
@@ -17,12 +18,14 @@ def enviar_una_respuesta():
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
     
-    # Aquí dejamos que webdriver-manager instale el Chrome estable
+    # Ruta exacta de Chrome en los servidores de GitHub
+    options.binary_location = "/usr/bin/google-chrome" 
+    
     driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
     
     try:
+        print("Navegando al formulario...")
         driver.get(URL_FORMULARIO)
-        print("Página cargada. Esperando elementos...")
         
         wait = WebDriverWait(driver, 20)
         wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "div[role='listitem']")))
@@ -83,6 +86,13 @@ def enviar_una_respuesta():
         
     except Exception as e:
         print(f"❌ Error en el envío: {e}")
+        # --- GUARDAR CAPTURA DE PANTALLA SI FALLA ---
+        try:
+            driver.save_screenshot("error_pantalla.png")
+            print("📸 Se guardó una captura de pantalla del error.")
+        except:
+            pass
+        # --------------------------------------------
     finally:
         driver.quit()
 
