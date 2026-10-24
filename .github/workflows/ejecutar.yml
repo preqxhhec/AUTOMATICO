@@ -16,14 +16,9 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Instalar Chrome y ChromeDriver
-        uses: browser-actions/setup-chrome@v2
-        with:
-          install-chromedriver: true
-
-      - name: Instalar dependencias de Python
+      - name: Instalar dependencias
         run: |
-          pip install selenium
+          pip install selenium webdriver-manager
 
       - name: Ejecutar el Bot
         run: python bot_encuestas.py
